@@ -1,0 +1,21 @@
+  <div className="flex items-center space-x-5">
+                <button
+                  onClick={handleSaveVersion}
+                  className="border-2 border-indigo-400 w-full py-3 text-center text-black hover:text-white font-semibold rounded-lg hover:bg-indigo-400"
+                >
+                  Save Version
+                </button>
+                <button
+                  onClick={handleLoadVersion}
+                  className="border-2 border-red-400 w-full py-3 text-center text-black hover:text-white font-semibold rounded-lg hover:bg-red-400"
+                >
+                  Load Version
+                </button>
+              </div>
+
+
+
+              {/* Code Editor */}
+              <div className="mt-5">
+                <div ref={codeMirrorRef} className="rounded-lg shadow-md h-[400px] w-full"></div>
+              </div>
