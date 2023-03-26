@@ -5,24 +5,24 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/material.css';
 import 'codemirror/mode/javascript/javascript'
 import {FiSend} from 'react-icons/fi'
-function CodeRoom() {
-    const [socket, setSocket] = useState(null);
+import toast from 'react-hot-toast';
+
+function CodeRoom({socket}) {
+    // const [socket, setSocket] = useState(null);
+    const sessionId = sessionStorage.getItem("session_id")
+    const userName = sessionStorage.getItem("userName")
     const [code, setCode] = useState('');
     const [version, setVersion] = useState(0);
     const codeMirrorRef = useRef();
   
     useEffect(() => {
-      const socketConnection = io("http://localhost:3000");
+     
   
-      setSocket(socketConnection);
   
-      socketConnection.on('update', (data) => {
+      socket.on('update', (data) => {
         setCode(data.code);
       });
   
-      return () => {
-        socketConnection.disconnect();
-      };
     }, []);
   
     useEffect(() => {
@@ -95,23 +95,23 @@ function CodeRoom() {
   const messageInputRef = useRef();
 
   useEffect(() => {
-    const socketConnection = io('http://localhost:3000');
-    setSocket(socketConnection);
+   
 
-    socketConnection.emit('join_session', JSON.parse(sessionStorage.getItem("sesssionId"))); // join the session on the server
 
-    socketConnection.on('code_updated', (data) => { // listen for code_updated events from the server
+    socket.on('code_updated', (data) => { // listen for code_updated events from the server
       setCode(data.code); // update the code with changes made by other users
     });
-
-    socketConnection.on('chat_message', (data) => { // listen for chat_message events from the server
-      setChatMessages((prevState) => [...prevState, data]); // update the chat with the new message
+    socket.on('chat_message', (data) => { // listen for chat_message events from the server
+      console.log("oh my goash")
+      if(data.sessionId === sessionId){
+        console.log("fuckit")
+        newMessages = [...chatMessages,data.message]
+        setChatMessages(newMessages); 
+      }
+     // update the chat with the new message
     });
 
-    return () => {
-      socketConnection.emit('leave_session', JSON.parse(sessionStorage.getItem("sesssionId"))); // leave the session on the server when the component unmounts
-      socketConnection.disconnect();
-    };
+   
   }, [JSON.parse(sessionStorage.getItem("sesssionId"))]);
 
   useEffect(() => {
@@ -129,22 +129,29 @@ function CodeRoom() {
         setCode(value); // update the code locally
 
         if (socket) {
-          socket.emit('code_updated', { code: value, sessionId : JSON.parse(sessionStorage.getItem("sesssionId")) }); // emit a code_updated event to the server
+          socket.emit('code_updated', { code: value, sessionId : sessionId }); // emit a code_updated event to the server
         }
       });
     }
   }, [codeMirrorRef, socket, JSON.parse(sessionStorage.getItem("sesssionId"))]);
 
   const handleSendMessage = () => {
-    const message = messageInputRef.current.value;
-    if (message.trim() !== '') {
-      socket.emit('chat_message', { message, sessionId : JSON.parse(sessionStorage.getItem("sesssionId")) }); // emit a chat_message event to the server
+    const message = {
+      content :  messageInputRef.current.value,
+      datetime : (new Date( )).toISOString(),
+      userName : userName
+     
+    };
+    if (message.content.trim() !== '') {
+      socket.emit('chat_message', { message, sessionId : sessionId }); // emit a chat_message event to the server
       messageInputRef.current.value = '';
+    }else{
+      toast.error("Empty  not supported ") 
     }
   };
     return (
       <div className="overflow-hidden h-screen bg-gray-100 py-6 flex flex-col justify-start sm:py-12">
-          <h1 className="text-4xl font-bold text-center mb-4">Online Code Editor :<span className='text-blue-500 ml-2' >234343</span> </h1>
+          <h1 className="text-4xl font-bold text-center mb-4">Online Code Editor :<span className='text-blue-500 ml-2' >{sessionStorage.getItem("session_id")}</span> </h1>
 
      {/* Main Layout */}
      <div className='flex h-[40rem]  gap-x-4' >
@@ -172,25 +179,23 @@ function CodeRoom() {
 
         <div className='h-full rounded flex-col flex mr-2 bg-white w-1/4 p-3' >
             <h1 className='text-center font-semibold ' >Chat</h1>
+            {/* Message Box */}
             <div className='flex-1 overflow-y-scroll flex-col flex gap-y-4 bg-gray-100 p-3' >
-                <div className='min-h-auto rounded flex-col flex bg-white max-w-[85%] p-3' >
-                    <h1 className='text-blue-400'>Yves Lionel Diomande</h1>
-                    <p className='text-gray-500'>bonjour serie ,regarder bien ton code au niveau de ...</p>
-                    <h1 className='self-end italic'>12:09</h1>
+              { chatMessages.map((message,index)=> (
+                      <div className={`min-h-auto rounded flex-col ${message.userName === userName? "self-end" : message.userName} flex bg-white max-w-[85%] p-3`} >
+                  <h1 className='text-blue-400'>{message.userName === userName? "you" : message.userName}</h1>
+                  <p className='text-gray-500'>{message.content}</p>
+                  <h1 className='self-end italic'>{message.datetime.split("T")[1].substring(0,5)}</h1>
 
                 </div>
-                <div className='min-h-auto rounded flex-col self-end flex bg-white max-w-[85%] p-3' >
-                    <h1 className='text-blue-400'>Vous</h1>
-                    <p className='text-gray-500'>bonjour serie ,regarder bien ton code au niveau de ...</p>
-                    <h1 className='self-end italic'>12:09</h1>
-
-                </div>
+              ))}
+            
             </div>
 
             {/* input */}
             <div className='w-full flex items-center gap-x-2 h-10 ' >
-            <input className='border-b-2  border-green-400 bg-gray-50 outline-none px-2 flex-1 h-[2.5rem]' />
-            <div className='h-8 w-8 bg-purple-500 cursor-pointer items-center justify-center flex rounded-md hover:bg-fuchsia-700' >
+            <input ref={messageInputRef} className='border-b-2  border-green-400 bg-gray-50 outline-none px-2 flex-1 h-[2.5rem]' />
+            <div onClick={()=>handleSendMessage()} className='h-8 w-8 bg-purple-500 cursor-pointer items-center justify-center flex rounded-md hover:bg-fuchsia-700' >
             <FiSend color="white" />    
              </div>
             </div>
